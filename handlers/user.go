@@ -5,33 +5,8 @@ import (
 	"camping-backend/models"
 	"camping-backend/serializers"
 	"fmt"
-	"strconv"
-
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 )
-
-func validUser(id string, p string) bool {
-	db := database.DB
-	user := new(models.User)
-	db.First(user, id)
-	fmt.Println("아이디가 없으면???")
-	fmt.Printf("%#v", user)
-	return CheckPasswordHash(p, user.Password)
-
-}
-
-func validToken(t *jwt.Token, id string) bool {
-	n, err := strconv.Atoi(id)
-	if err != nil {
-		return false
-	}
-
-	claims := t.Claims.(jwt.MapClaims)
-	uid := int(claims["user_id"].(float64))
-	return uid == n
-}
-
 
 func CreateUser(c *fiber.Ctx) error {
 	user := new(models.User)
@@ -39,7 +14,6 @@ func CreateUser(c *fiber.Ctx) error {
 	if err := c.BodyParser(user); err != nil {
 		return c.Status(400).JSON(err.Error())
 	}
-	
 
 	if userExist := checkEmailDuplicate(user); userExist {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -48,7 +22,7 @@ func CreateUser(c *fiber.Ctx) error {
 	}
 
 	// password 해쉬
-	user.PaswordHash()
+	user.PaswordHash(user.Password)
 
 	database.DB.Create(user)
 	responseUser := serializers.UserSerializer(*user)
@@ -56,8 +30,66 @@ func CreateUser(c *fiber.Ctx) error {
 
 }
 
-func checkEmailDuplicate(user *models.User) bool{
-	database.DB.Find(user, "email = ?", user.Email)	
-	return user.ID>0
+func Me(c *fiber.Ctx) error {
+	user, err := authUser(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"detail": err.Error(),
+		})
+	}
+
+	fmt.Println("user: ", user)
+
+	return nil
 }
 
+func ChangePassword(c *fiber.Ctx) error {
+	user, err := authUser(c)
+
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"detail": err.Error(),
+		})
+	}
+
+	type Req struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+		CheckPassword   string `json:"check_password"`
+	}
+
+	req := Req{}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Couldn't change password",
+			"data":    err.Error(),
+		})
+	}
+
+	if !CheckPasswordHash(req.CurrentPassword, user.Password) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "It is different from the previous password.",
+			"data":    nil,
+		})
+	}
+
+	if req.NewPassword != req.CheckPassword {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "The password you entered is different",
+			"data":    nil,
+		})
+	}
+
+	user.PaswordHash(req.NewPassword)
+
+	database.DB.Save(user)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "The Password Change Successful",
+		"data":    nil,
+	})
+}
