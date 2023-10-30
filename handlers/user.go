@@ -4,6 +4,7 @@ import (
 	"camping-backend/database"
 	"camping-backend/models"
 	"camping-backend/serializers"
+	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 )
@@ -92,4 +93,13 @@ func ChangePassword(c *fiber.Ctx) error {
 		"message": "The Password Change Successful",
 		"data":    nil,
 	})
+}
+
+func FindUserById(user *models.User, id int) error {
+	database.DB.First(&user, id)
+	if user.ID == 0 {
+		return errors.New("해당 유저가 없어용")
+	}
+	return nil
+
 }

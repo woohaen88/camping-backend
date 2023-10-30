@@ -17,6 +17,10 @@ func setupRoute(app *fiber.App) {
 	user.Post("/login", handlers.Login)
 	user.Put("/change-password", middleware.JwtMiddleWare(), handlers.ChangePassword)
 	user.Get("/me", middleware.JwtMiddleWare(), handlers.Me)
+
+	camping := api.Group("/camping")
+	camping.Post("/", middleware.JwtMiddleWare(), handlers.CreateCamping)
+	camping.Get("/", handlers.ListCamping)
 }
 
 func main() {

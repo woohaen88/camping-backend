@@ -9,10 +9,11 @@ import (
 
 type User struct {
 	gorm.Model
-	ID       uint   `json:"id" gorm:"primaryKey"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Username string `json:"username"`
+	ID       uint      `json:"id" gorm:"primaryKey"`
+	Email    string    `json:"email"`
+	Password string    `json:"password"`
+	Username string    `json:"username"`
+	Campings []Camping `gorm:"foreignKey:UserID"`
 }
 
 func (u *User) PaswordHash(password string) {
