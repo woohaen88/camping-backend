@@ -24,7 +24,8 @@ func CreateUser(c *fiber.Ctx) error {
 	}
 
 	// password 해쉬
-
+	user.PaswordHash()
+	
 	database.DB.Create(user)
 	responseUser := serializers.UserSerializer(*user)
 	return c.Status(200).JSON(responseUser)
@@ -35,3 +36,4 @@ func checkEmailDuplicate(user *models.User) bool{
 	database.DB.Find(user, "email = ?", user.Email)	
 	return user.ID>0
 }
+

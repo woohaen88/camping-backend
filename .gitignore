@@ -83,3 +83,5 @@ $RECYCLE.BIN/
 sqlite.db
 api.rest
 tmp
+go.sum
+go.sum
