@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"camping-backend/database"
+	"camping-backend/enums"
 	"camping-backend/models"
 	"camping-backend/serializers"
+	"errors"
+	"fmt"
 	"github.com/gofiber/fiber/v2"
-	"time"
 )
 
 func CreateCamping(c *fiber.Ctx) error {
@@ -30,43 +32,50 @@ func CreateCamping(c *fiber.Ctx) error {
 		})
 	}
 
+	// enum check
+	if err := setEnumView(request.View); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": fmt.Sprintf("%s", err.Error()),
+		})
+	}
+
+	if err := setEnumStatus(request.IsEvCharge, request.IsSideParking, request.IsPetFriendly); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": fmt.Sprintf("%s", err.Error()),
+		})
+	}
+
 	database.DB.Create(&request)
 
-	type ResponseUser = struct {
-		ID       uint
-		Email    string
-		Username string
-	}
-
-	responseCamping := struct {
-		ID        uint
-		Title     string
-		Address   string
-		CreatedAt time.Time
-		UpdatedAt time.Time
-		User      ResponseUser
-	}{
-		ID:        request.ID,
-		Title:     request.Title,
-		Address:   request.Address,
-		CreatedAt: request.CreatedAt,
-		UpdatedAt: request.UpdatedAt,
-		User: struct {
-			ID       uint
-			Email    string
-			Username string
-		}{
-			ID:       user.ID,
-			Email:    user.Email,
-			Username: user.Username,
-		},
-	}
+	responseUser := serializers.UserSerializer(user)
+	responseCamping := serializers.CampingSerializer(&request, responseUser)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "success",
 		"data":    responseCamping,
 	})
+}
+
+func setEnumView(view enums.ViewKind) error {
+	err := view.String()
+	if err != nil {
+		return errors.New(fmt.Sprintf("%s: %s", view, err.Error()))
+	}
+	return nil
+
+}
+
+func setEnumStatus(status ...enums.Status) error {
+	for _, s := range status {
+		err := s.String()
+		if err != nil {
+			return errors.New(fmt.Sprintf("%s: %s", s, err.Error()))
+		}
+	}
+	return nil
 }
 func ListCamping(c *fiber.Ctx) error {
 	var campings []models.Camping
@@ -84,8 +93,8 @@ func ListCamping(c *fiber.Ctx) error {
 				"data":    err.Error(),
 			})
 		}
-		responseUser := serializers.UserSerializer(owner)
-		responseCamping := serializers.CampingSerializer(camping, responseUser)
+		responseUser := serializers.UserSerializer(&owner)
+		responseCamping := serializers.CampingSerializer(&camping, responseUser)
 		responseCampings = append(responseCampings, responseCamping)
 	}
 

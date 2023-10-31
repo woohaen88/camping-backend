@@ -26,7 +26,7 @@ func CreateUser(c *fiber.Ctx) error {
 	user.PaswordHash(user.Password)
 
 	database.DB.Create(user)
-	responseUser := serializers.UserSerializer(*user)
+	responseUser := serializers.UserSerializer(user)
 	return c.Status(200).JSON(responseUser)
 
 }
