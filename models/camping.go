@@ -23,8 +23,6 @@ type Camping struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	// TODO
-	// Amenity, ManytoMany
-	// Tag, ManytoMany
-
+	Amenities []*Amenity `json:"amenities" gorm:"many2many:camping_amenities;"`
+	Tags      []*Tag     `json:"tags" gorm:"many2many:camping_tags;"`
 }

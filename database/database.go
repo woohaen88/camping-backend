@@ -29,7 +29,12 @@ func ConnectDB() {
 	log.Println("Running Migrations")
 
 	// Todo: Add migrations
-	err = db.AutoMigrate(&models.User{}, new(models.Camping))
+	err = db.AutoMigrate(
+		&models.User{},
+		new(models.Camping),
+		new(models.Amenity),
+		new(models.Tag),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
