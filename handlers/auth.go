@@ -112,22 +112,6 @@ func getUserByEmail(email string) (*models.User, error) {
 	return user, nil
 }
 
-func authUser(c *fiber.Ctx) (*models.User, error) {
-	jwtUser := c.Locals("user").(*jwt.Token)
-	claims := jwtUser.Claims.(jwt.MapClaims)
-	userId := claims["userId"]
-
-	db := database.DB
-	user := new(models.User)
-	db.Find(user, "id = ?", userId)
-	if user.ID == 0 {
-		return nil, errors.New("해당 유저는 없어욧!!")
-	}
-
-	return user, nil
-
-}
-
 func checkEmailDuplicate(user *models.User) bool {
 	database.DB.Find(user, "email = ?", user.Email)
 	return user.ID > 0

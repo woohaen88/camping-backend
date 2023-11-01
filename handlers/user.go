@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"camping-backend/database"
+	"camping-backend/middleware"
 	"camping-backend/models"
 	"camping-backend/serializers"
 	"errors"
@@ -22,6 +23,14 @@ func CreateUser(c *fiber.Ctx) error {
 		})
 	}
 
+	if err := user.Role.Check(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "success",
+			"message": "user role 타입이 올바르지 않아욧",
+			"data":    err.Error(),
+		})
+	}
+
 	// password 해쉬
 	user.PaswordHash(user.Password)
 
@@ -32,7 +41,7 @@ func CreateUser(c *fiber.Ctx) error {
 }
 
 func Me(c *fiber.Ctx) error {
-	user, err := authUser(c)
+	user, err := middleware.GetAuthUser(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"detail": err.Error(),
@@ -45,7 +54,7 @@ func Me(c *fiber.Ctx) error {
 }
 
 func ChangePassword(c *fiber.Ctx) error {
-	user, err := authUser(c)
+	user, err := middleware.GetAuthUser(c)
 
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

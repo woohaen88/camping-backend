@@ -2,8 +2,12 @@ package middleware
 
 import (
 	"camping-backend/config"
+	"camping-backend/database"
+	"camping-backend/models"
+	"errors"
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 //JWT는 JWT(JSON Web Token) 인증 미들웨어를 Return
@@ -13,8 +17,24 @@ import (
 //잘못된 토큰의 경우 "401 - Unauthorized" 오류가 Return
 //토큰이 누락된 경우 "400 - 잘못된 요청" 오류가 Return
 
-func JwtMiddleWare() fiber.Handler {
+func Protected() fiber.Handler {
 	return jwtware.New(jwtware.Config{
 		SigningKey: jwtware.SigningKey{Key: []byte(config.Config("SECRET"))},
 	})
+}
+
+func GetAuthUser(c *fiber.Ctx) (*models.User, error) {
+	jwtUser := c.Locals("user").(*jwt.Token)
+	claims := jwtUser.Claims.(jwt.MapClaims)
+	userId := claims["userId"]
+
+	db := database.DB
+	user := new(models.User)
+	db.Find(user, "id = ?", userId)
+	if user.ID == 0 {
+		return nil, errors.New("해당 유저는 없어욧!!")
+	}
+
+	return user, nil
+
 }

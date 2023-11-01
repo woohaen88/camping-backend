@@ -3,6 +3,7 @@ package handlers
 import (
 	"camping-backend/database"
 	"camping-backend/enums"
+	"camping-backend/middleware"
 	"camping-backend/models"
 	"camping-backend/serializers"
 	"errors"
@@ -12,7 +13,7 @@ import (
 )
 
 func CreateCamping(c *fiber.Ctx) error {
-	user, err := authUser(c)
+	user, err := middleware.GetAuthUser(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"detail": err.Error(),
@@ -135,7 +136,7 @@ func GetCamping(c *fiber.Ctx) error {
 
 func UpdateCamping(c *fiber.Ctx) error {
 
-	owner, err := authUser(c)
+	owner, err := middleware.GetAuthUser(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "Unauthorized",
@@ -261,7 +262,7 @@ func UpdateCamping(c *fiber.Ctx) error {
 }
 
 func DeleteCamping(c *fiber.Ctx) error {
-	owner, err := authUser(c)
+	owner, err := middleware.GetAuthUser(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "success",
