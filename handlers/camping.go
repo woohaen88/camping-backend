@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 func CreateCamping(c *fiber.Ctx) error {
@@ -103,5 +104,49 @@ func ListCamping(c *fiber.Ctx) error {
 		"message": "success",
 		"data":    responseCampings,
 	})
+}
 
+func GetCamping(c *fiber.Ctx) error {
+	campingId, err := c.ParamsInt("campingId")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "error",
+			"data":    err.Error(),
+		})
+	}
+
+	var camping models.Camping
+	var user models.User
+
+	if err := database.DB.First(&camping, "id = ?", campingId).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"status":  "error",
+				"message": "error",
+				"data":    err.Error(),
+			})
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "error",
+			"data":    err.Error(),
+		})
+	}
+
+	if err := FindUserById(&user, int(camping.UserID)); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":  "error",
+			"message": "error",
+			"data":    err.Error(),
+		})
+	}
+
+	serializedUser := serializers.UserSerializer(&user)
+	serializedCamping := serializers.CampingSerializer(&camping, serializedUser)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "success",
+		"data":    serializedCamping,
+	})
 }

@@ -21,6 +21,7 @@ func setupRoute(app *fiber.App) {
 	camping := api.Group("/camping")
 	camping.Post("/", middleware.JwtMiddleWare(), handlers.CreateCamping)
 	camping.Get("/", handlers.ListCamping)
+	camping.Get("/:campingId", handlers.GetCamping)
 }
 
 func main() {
