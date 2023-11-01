@@ -22,6 +22,8 @@ func setupRoute(app *fiber.App) {
 	camping.Post("/", middleware.JwtMiddleWare(), handlers.CreateCamping)
 	camping.Get("/", handlers.ListCamping)
 	camping.Get("/:campingId", handlers.GetCamping)
+	camping.Put("/:campingId", middleware.JwtMiddleWare(), handlers.UpdateCamping)
+	camping.Delete("/:campingId", middleware.JwtMiddleWare(), handlers.DeleteCamping)
 }
 
 func main() {
