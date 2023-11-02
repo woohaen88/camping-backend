@@ -9,12 +9,18 @@ func AssignRole(role enums.Role) fiber.Handler {
 
 	if err := role.Check(); err != nil {
 		return func(c *fiber.Ctx) error {
-			return c.Next()
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"status":  "error",
+				"message": "invalid type value",
+				"data":    nil,
+			})
 		}
 	}
 
 	return func(c *fiber.Ctx) error {
+
 		authUser, err := GetAuthUser(c)
+
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"status":  "error",
@@ -30,6 +36,7 @@ func AssignRole(role enums.Role) fiber.Handler {
 				"data":    nil,
 			})
 		}
-		return nil
+
+		return c.Next()
 	}
 }
