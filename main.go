@@ -29,6 +29,11 @@ func setupRoute(app *fiber.App) {
 	tag := api.Group("/tag", middleware.Protected(), middleware.AssignRole(enums.Admin))
 	tag.Get("/", handlers.ListTag)
 	tag.Post("/", handlers.CreateTag)
+
+	amenity := api.Group("/amenity", middleware.Protected(), middleware.AssignRole(enums.Admin))
+	amenity.Get("/", handlers.ListAmenity)
+	amenity.Post("/", handlers.CreateAmenity)
+
 }
 
 func main() {

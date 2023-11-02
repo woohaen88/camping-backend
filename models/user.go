@@ -5,22 +5,22 @@ import (
 	"camping-backend/enums"
 
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 type User struct {
-	gorm.Model
-	ID       uint       `json:"id" gorm:"primaryKey"`
-	Email    string     `json:"email"`
-	Password string     `json:"password"`
-	Username string     `json:"username"`
-	Campings []Camping  `gorm:"foreignKey:UserId"`
-	Role     enums.Role `json:"role" gorm:"default:'client'"`
-	Tags     []Tag      `gorm:"foreignKey:UserId"`
+	ID        uint       `json:"id" gorm:"primaryKey"`
+	Email     string     `json:"email"`
+	Password  string     `json:"password"`
+	Username  string     `json:"username"`
+	Campings  []Camping  `gorm:"foreignKey:UserId"`
+	Role      enums.Role `json:"role" gorm:"default:'client'"`
+	Tags      []Tag      `gorm:"foreignKey:UserId"`
+	Amenities []Amenity  `gorm:"foreignKey:UserId"`
 }
 
 func (u *User) PaswordHash(password string) {
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	common.CheckErr(err)
+
 	u.Password = string(hashPassword)
 }
