@@ -18,7 +18,7 @@ type Camping struct {
 	VisitedStartAt string         `json:"visited_start_at"`                                        // TODO string -> datetime
 	VisitedEndAt   string         `json:"visited_end_at"`
 
-	UserID uint
+	UserId uint
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

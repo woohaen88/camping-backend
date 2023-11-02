@@ -15,7 +15,7 @@
 
 
 // only for Admin  
-POST   /api/v1/tag  
+[v] POST   /api/v1/tag  
 GET    /api/v1/tag  
 GET    /api/v1/tag/1  
 PUT    /api/v1/tag/1  

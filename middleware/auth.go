@@ -4,7 +4,6 @@ import (
 	"camping-backend/config"
 	"camping-backend/database"
 	"camping-backend/models"
-	"errors"
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -24,15 +23,17 @@ func Protected() fiber.Handler {
 }
 
 func GetAuthUser(c *fiber.Ctx) (*models.User, error) {
+
 	jwtUser := c.Locals("user").(*jwt.Token)
 	claims := jwtUser.Claims.(jwt.MapClaims)
 	userId := claims["userId"]
 
 	db := database.DB
 	user := new(models.User)
-	db.Find(user, "id = ?", userId)
-	if user.ID == 0 {
-		return nil, errors.New("해당 유저는 없어욧!!")
+
+	if err := db.First(user, "id = ?", userId).Error; err != nil {
+
+		return nil, err
 	}
 
 	return user, nil

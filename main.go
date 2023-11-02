@@ -26,8 +26,9 @@ func setupRoute(app *fiber.App) {
 	camping.Put("/:campingId", middleware.Protected(), handlers.UpdateCamping)
 	camping.Delete("/:campingId", middleware.Protected(), handlers.DeleteCamping)
 
-	tag := api.Group("/tag")
-	tag.Get("/", middleware.Protected(), middleware.AssignRole(enums.Client), handlers.ListTag)
+	tag := api.Group("/tag", middleware.Protected(), middleware.AssignRole(enums.Admin))
+	tag.Get("/", handlers.ListTag)
+	tag.Post("/", handlers.CreateTag)
 }
 
 func main() {

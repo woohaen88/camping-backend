@@ -19,6 +19,8 @@ type Camping struct {
 	VisitedStartAt string // TODO: parseDateTIme
 	VisitedEndAt   string // TODO: parseDateTIme
 
+	Tags []Tag
+
 	UserID uint
 	User   User // Serializer
 
@@ -26,7 +28,8 @@ type Camping struct {
 	UpdatedAt time.Time
 }
 
-func CampingSerializer(camping *models.Camping, serializeUser User) Camping {
+func CampingSerializer[T []Tag](camping *models.Camping, serializeUser User, options ...T) Camping {
+	tags := options[0]
 	return Camping{
 		ID:             camping.ID,
 		Title:          camping.Title,
@@ -39,6 +42,8 @@ func CampingSerializer(camping *models.Camping, serializeUser User) Camping {
 		IsPetFriendly:  camping.IsPetFriendly,
 		VisitedStartAt: camping.VisitedStartAt,
 		VisitedEndAt:   camping.VisitedEndAt,
+
+		Tags: tags,
 
 		UserID: serializeUser.ID,
 		User:   serializeUser,

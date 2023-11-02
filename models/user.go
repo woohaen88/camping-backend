@@ -14,8 +14,9 @@ type User struct {
 	Email    string     `json:"email"`
 	Password string     `json:"password"`
 	Username string     `json:"username"`
-	Campings []Camping  `gorm:"foreignKey:UserID"`
+	Campings []Camping  `gorm:"foreignKey:UserId"`
 	Role     enums.Role `json:"role" gorm:"default:'client'"`
+	Tags     []Tag      `gorm:"foreignKey:UserId"`
 }
 
 func (u *User) PaswordHash(password string) {
