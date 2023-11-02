@@ -13,18 +13,33 @@ import (
 )
 
 func CreateCamping(c *fiber.Ctx) error {
+
 	user, err := middleware.GetAuthUser(c)
+
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"detail": err.Error(),
 		})
 	}
 
-	var request = models.Camping{
+	var camping = models.Camping{
 		CreatedAt: database.DB.NowFunc(),
 		UpdatedAt: database.DB.NowFunc(),
-		UserID:    user.ID,
+		UserId:    user.ID,
 	}
+	request := struct {
+		Title          string         `json:"title"`
+		Address        string         `json:"address"`
+		Description    string         `json:"description"`
+		View           enums.ViewKind `json:"view"`
+		IsEvCharge     enums.Status   `json:"is_ev_charge"`
+		MannerTime     string         `json:"manner_time"`
+		IsSideParking  enums.Status   `json:"is_side_parking"`
+		IsPetFriendly  enums.Status   `json:"is_pet_friendly"`
+		VisitedStartAt string         `json:"visited_start_at"`
+		VisitedEndAt   string         `json:"visited_end_at"`
+		Tags           []uint         `json:"tags"`
+	}{}
 
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -49,16 +64,69 @@ func CreateCamping(c *fiber.Ctx) error {
 		})
 	}
 
-	database.DB.Create(&request)
+	// requestt -> camping
+	camping.Title = request.Title
+	camping.Address = request.Address
+	camping.Description = request.Description
+	camping.View = request.View
+	camping.IsEvCharge = request.IsEvCharge
+	camping.MannerTime = request.MannerTime
+	camping.IsSideParking = request.IsSideParking
+	camping.IsPetFriendly = request.IsPetFriendly
+	camping.VisitedStartAt = request.VisitedStartAt
+	camping.VisitedEndAt = request.VisitedEndAt
 
+	var tagModels []models.Tag
+
+	for _, tagId := range request.Tags {
+		var tagModel models.Tag
+		err = database.DB.First(&tagModel, "id = ?", tagId).Error
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"status":  "error",
+				"message": "could not pasing tag",
+				"data":    err.Error(),
+			})
+		}
+
+		tagModels = append(tagModels, tagModel)
+	}
+
+	var serializedTags []serializers.Tag
+	for i := 0; i < len(tagModels); i++ {
+		tagModel := tagModels[i]
+		var tagUser models.User
+		err = FindUserById(&tagUser, int(tagModel.UserId))
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"status":  "error",
+				"message": "could not User",
+				"data":    err.Error(),
+			})
+		}
+		serializedTag := serializers.TagSerializer(tagModel, serializers.UserSerializer(user))
+		serializedTags = append(serializedTags, serializedTag)
+	}
+
+	database.DB.Create(&camping)
+
+	err = database.DB.Model(&camping).Association("Tags").Append(tagModels)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed many to many field camping=>tag",
+			"data":    err.Error(),
+		})
+	}
 	responseUser := serializers.UserSerializer(user)
-	responseCamping := serializers.CampingSerializer(&request, responseUser)
+	responseCamping := serializers.CampingSerializer(&camping, responseUser, serializedTags)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "success",
 		"data":    responseCamping,
 	})
+
 }
 
 func ListCamping(c *fiber.Ctx) error {
@@ -70,7 +138,7 @@ func ListCamping(c *fiber.Ctx) error {
 	var responseCampings []serializers.Camping
 
 	for _, camping := range campings {
-		if err := FindUserById(&owner, int(camping.UserID)); err != nil {
+		if err := FindUserById(&owner, int(camping.UserId)); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"status":  "error",
 				"message": "Couldn't change password",
@@ -117,7 +185,7 @@ func GetCamping(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := FindUserById(&user, int(camping.UserID)); err != nil {
+	if err := FindUserById(&user, int(camping.UserId)); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status":  "error",
 			"message": "error",
@@ -304,7 +372,7 @@ func DeleteCamping(c *fiber.Ctx) error {
 }
 
 func checkUserEqualsRecordUser(owner *models.User, camping models.Camping) error {
-	if owner.ID != camping.UserID {
+	if owner.ID != camping.UserId {
 		return errors.New("당신은 작성자가 아니군요!!")
 	}
 	return nil
