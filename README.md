@@ -16,16 +16,14 @@
 
 // only for Admin  
 [v] POST   /api/v1/tag  
-GET    /api/v1/tag  
-GET    /api/v1/tag/1  
+GET    /api/v1/tag   
 PUT    /api/v1/tag/1  
 DELETE /api/v1/tag/1
 
 
 // only for Admin  
 [v] POST   /api/v1/amenity  
-[v] GET    /api/v1/amenity  
-GET    /api/v1/amenity/1  
+[v] GET    /api/v1/amenity   
 PUT    /api/v1/amenity/1  
 DELETE /api/v1/amenity/1
 

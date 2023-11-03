@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	commonError "camping-backend/common/errors"
 	"camping-backend/database"
 	"camping-backend/middleware"
 	"camping-backend/models"
@@ -10,8 +11,25 @@ import (
 )
 
 func ListTag(c *fiber.Ctx) error {
+	var tags []models.Tag
+	database.DB.Find(&tags)
 
-	return nil
+	// serializer
+	var serializedTags []serializers.Tag
+	for _, tag := range tags {
+		var user models.User
+		if err := database.DB.First(&user, tag.UserId).Error; err != nil {
+			return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
+		}
+		serializedTag := serializers.TagSerializer(tag, serializers.UserSerializer(&user))
+		serializedTags = append(serializedTags, serializedTag)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "error",
+		"message": "error",
+		"data":    serializedTags,
+	})
 }
 
 func CreateTag(c *fiber.Ctx) error {
