@@ -10,6 +10,74 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+func DeleteTag(c *fiber.Ctx) error {
+	tagId, err := c.ParamsInt("tagId")
+
+	authUser, _ := middleware.GetAuthUser(c)
+
+	if err != nil {
+		return commonError.ErrorHandler(c, fiber.StatusBadRequest, err)
+	}
+
+	var tag models.Tag
+	if err := database.DB.First(&tag, "id = ?", tagId).Error; err != nil {
+		return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
+	}
+
+	if tag.UserId != authUser.ID {
+		return commonError.ErrorHandler(c, fiber.StatusNotFound, nil, "남에껄 삭제하려하면 오또케~")
+	}
+
+	if err := database.DB.Delete(&tag).Error; err != nil {
+		return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "success delete tag",
+		"data":    nil,
+	})
+}
+
+func UpdateTag(c *fiber.Ctx) error {
+	tagId, err := c.ParamsInt("tagId")
+
+	authUser, _ := middleware.GetAuthUser(c)
+
+	if err != nil {
+		return commonError.ErrorHandler(c, fiber.StatusBadRequest, err)
+	}
+
+	var tag models.Tag
+	if err := database.DB.First(&tag, "id = ?", tagId).Error; err != nil {
+		return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
+	}
+
+	if tag.UserId != authUser.ID {
+		return commonError.ErrorHandler(c, fiber.StatusNotFound, nil, "남에껄 수정하려하면 오또케~")
+	}
+
+	request := struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}{}
+	if err := c.BodyParser(&request); err != nil {
+		return commonError.ErrorHandler(c, fiber.StatusBadRequest, err)
+	}
+
+	tag.UpdatedAt = database.DB.NowFunc()
+	if err := database.DB.Model(&tag).Updates(request).Error; err != nil {
+		return commonError.ErrorHandler(c, fiber.StatusBadRequest, err)
+	}
+
+	serializedTag := serializers.TagSerializer(tag, serializers.UserSerializer(authUser))
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "update success",
+		"data":    serializedTag,
+	})
+}
+
 func ListTag(c *fiber.Ctx) error {
 	var tags []models.Tag
 	database.DB.Find(&tags)
