@@ -10,7 +10,24 @@ import (
 )
 
 func ListAmenity(c *fiber.Ctx) error {
-	return nil
+
+	var amenities []models.Amenity
+	database.DB.Find(&amenities)
+
+	var serializedAmenities []serializers.Amenity
+	for _, amenity := range amenities {
+		var amenityCreator models.User
+		if err := FindUserById(&amenityCreator, int(amenity.UserId)); err != nil {
+			return errors.ErrorHandler(c, fiber.StatusNotFound, err)
+		}
+		serializedAmenity := serializers.AmenitySerializer(amenity, serializers.UserSerializer(&amenityCreator))
+		serializedAmenities = append(serializedAmenities, serializedAmenity)
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "success",
+		"data":    serializedAmenities,
+	})
 }
 
 func CreateAmenity(c *fiber.Ctx) error {
@@ -35,9 +52,9 @@ func CreateAmenity(c *fiber.Ctx) error {
 	amenity.UpdatedAt = database.DB.NowFunc()
 	amenity.UserId = authUser.ID
 
-	database.DB.Create(&amenity)
-
-	// TODO: serializer
+	if err := database.DB.Create(&amenity).Error; err != nil {
+		return errors.ErrorHandler(c, fiber.StatusBadRequest, err)
+	}
 
 	serializedUser := serializers.UserSerializer(authUser)
 	serializedAmenity := serializers.AmenitySerializer(amenity, serializedUser)

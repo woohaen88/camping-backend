@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	commonErrors "camping-backend/common/errors"
 	"camping-backend/database"
 	"camping-backend/enums"
 	"camping-backend/middleware"
@@ -39,6 +40,7 @@ func CreateCamping(c *fiber.Ctx) error {
 		VisitedStartAt string         `json:"visited_start_at"`
 		VisitedEndAt   string         `json:"visited_end_at"`
 		Tags           []uint         `json:"tags"`
+		Amenities      []uint         `json:"amenities"`
 	}{}
 
 	if err := c.BodyParser(&request); err != nil {
@@ -108,18 +110,36 @@ func CreateCamping(c *fiber.Ctx) error {
 		serializedTags = append(serializedTags, serializedTag)
 	}
 
+	// amenity
+	var amenities []models.Amenity
+	var serializedAmenities []serializers.Amenity
+	for _, amenityId := range request.Amenities {
+		amenity := models.Amenity{}
+		var amenityCreator models.User
+		if err := database.DB.First(&amenity, "id = ?", amenityId).Error; err != nil {
+			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
+		}
+
+		if err := FindUserById(&amenityCreator, int(amenity.UserId)); err != nil {
+			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
+		}
+
+		serializedAmenity := serializers.AmenitySerializer(amenity, serializers.UserSerializer(&amenityCreator))
+		serializedAmenities = append(serializedAmenities, serializedAmenity)
+		amenities = append(amenities, amenity)
+	}
+
 	database.DB.Create(&camping)
 
-	err = database.DB.Model(&camping).Association("Tags").Append(tagModels)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "failed many to many field camping=>tag",
-			"data":    err.Error(),
-		})
+	if err := database.DB.Model(&camping).Association("Tags").Append(tagModels); err != nil {
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err, "failed many to many field camping=>tags")
+	}
+
+	if err := database.DB.Model(&camping).Association("Amenities").Append(amenities); err != nil {
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err, "failed many to many field camping=>amenities")
 	}
 	responseUser := serializers.UserSerializer(user)
-	responseCamping := serializers.CampingSerializer(&camping, responseUser, serializedTags)
+	responseCamping := serializers.CampingSerializer(&camping, responseUser, serializedTags, serializedAmenities)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
