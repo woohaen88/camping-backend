@@ -7,10 +7,15 @@ import (
 	"camping-backend/middleware"
 	"camping-backend/models"
 	"camping-backend/serializers"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fatih/structs"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"log"
+	"reflect"
+	"strings"
 )
 
 func CreateCamping(c *fiber.Ctx) error {
@@ -18,9 +23,7 @@ func CreateCamping(c *fiber.Ctx) error {
 	user, err := middleware.GetAuthUser(c)
 
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"detail": err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusUnauthorized, err)
 	}
 
 	var camping = models.Camping{
@@ -53,17 +56,11 @@ func CreateCamping(c *fiber.Ctx) error {
 
 	// enum check
 	if err := setEnumView(request.View); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": fmt.Sprintf("%s", err.Error()),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
 	if err := setEnumStatus(request.IsEvCharge, request.IsSideParking, request.IsPetFriendly); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": fmt.Sprintf("%s", err.Error()),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
 	// requestt -> camping
@@ -84,11 +81,7 @@ func CreateCamping(c *fiber.Ctx) error {
 		var tagModel models.Tag
 		err = database.DB.First(&tagModel, "id = ?", tagId).Error
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"status":  "error",
-				"message": "could not pasing tag",
-				"data":    err.Error(),
-			})
+			return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err, "could not parse tag")
 		}
 
 		tagModels = append(tagModels, tagModel)
@@ -100,11 +93,7 @@ func CreateCamping(c *fiber.Ctx) error {
 		var tagUser models.User
 		err = FindUserById(&tagUser, int(tagModel.UserId))
 		if err != nil {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":  "error",
-				"message": "could not User",
-				"data":    err.Error(),
-			})
+			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
 		}
 		serializedTag := serializers.TagSerializer(tagModel, serializers.UserSerializer(user))
 		serializedTags = append(serializedTags, serializedTag)
@@ -159,11 +148,7 @@ func ListCamping(c *fiber.Ctx) error {
 
 	for _, camping := range campings {
 		if err := FindUserById(&owner, int(camping.UserId)); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"status":  "error",
-				"message": "Couldn't change password",
-				"data":    err.Error(),
-			})
+			return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 		}
 		responseUser := serializers.UserSerializer(&owner)
 		responseCamping := serializers.CampingSerializer(&camping, responseUser)
@@ -180,11 +165,7 @@ func ListCamping(c *fiber.Ctx) error {
 func GetCamping(c *fiber.Ctx) error {
 	campingId, err := c.ParamsInt("campingId")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
 	var camping models.Camping
@@ -192,25 +173,13 @@ func GetCamping(c *fiber.Ctx) error {
 
 	if err := database.DB.First(&camping, "id = ?", campingId).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":  "error",
-				"message": "error",
-				"data":    err.Error(),
-			})
+			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
 		}
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
 	if err := FindUserById(&user, int(camping.UserId)); err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"status":  "error",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
 	}
 
 	serializedUser := serializers.UserSerializer(&user)
@@ -226,164 +195,152 @@ func UpdateCamping(c *fiber.Ctx) error {
 
 	owner, err := middleware.GetAuthUser(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status":  "Unauthorized",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusUnauthorized, err)
 	}
 
 	// urlparsing
 	campingId, err := c.ParamsInt("campingId")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
 	// FindDB
 	var camping models.Camping
 	if err := database.DB.First(&camping, "id = ?", campingId).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":  "error",
-				"message": "error",
-				"data":    err.Error(),
-			})
+			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
 		}
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
 	// user가 같은지 체크
 	if err := checkUserEqualsRecordUser(owner, camping); err != nil {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "error",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
-	//payload
-	//업데이트 시간 변경
-	type Payload struct {
-		Title          string
-		Address        string
-		Description    string
-		View           enums.ViewKind
-		IsEvCharge     enums.Status
-		MannerTime     string
-		IsSideParking  enums.Status
-		IsPetFriendly  enums.Status
-		VisitedStartAt string
-		VisitedEndAt   string
+	type UpdatePayload struct {
+		Title          string         `json:"title"`
+		Address        string         `json:"address"`
+		Description    string         `json:"description"`
+		View           enums.ViewKind `json:"view"`
+		IsEvCharge     enums.Status   `json:"is_ev_charge"`
+		MannerTime     string         `json:"manner_time"`
+		IsSideParking  enums.Status   `json:"is_side_parking"`
+		IsPetFriendly  enums.Status   `json:"is_pet_friendly"`
+		VisitedStartAt string         `json:"visited_start_at"`
+		VisitedEndAt   string         `json:"visited_end_at"`
+		Tags           []int          `json:"tags"`
+		Amenities      []int          `json:"amenities"`
 	}
 
-	payload := &Payload{}
+	payload := &UpdatePayload{}
+
 	if err := c.BodyParser(&payload); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
 	if len(payload.View) > 0 {
 		err := setEnumView(payload.View)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"status":  "error",
-				"message": "error",
-				"data":    err.Error(),
-			})
+			return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 		}
+
 	}
 
 	if len(payload.IsEvCharge) > 0 {
 		err := setEnumStatus(payload.IsEvCharge)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"status":  "error",
-				"message": "error",
-				"data":    err.Error(),
-			})
+			return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 		}
+
 	}
 
 	if len(payload.IsSideParking) > 0 {
 		err := setEnumStatus(payload.IsSideParking)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"status":  "error",
-				"message": "error",
-				"data":    err.Error(),
-			})
+			return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 		}
+
 	}
 
 	if len(payload.IsPetFriendly) > 0 {
 		err := setEnumStatus(payload.IsPetFriendly)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"status":  "error",
-				"message": "error",
-				"data":    err.Error(),
-			})
+			return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
+		}
+
+	}
+
+	var serializedTags []serializers.Tag
+	var tags []*models.Tag
+	if len(payload.Tags) > 0 {
+		for _, tagId := range payload.Tags {
+			tag, err := FindByTagId(tagId)
+			if err != nil {
+				return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
+			}
+
+			var tagOwner models.User
+			err = FindUserById(&tagOwner, int(tag.UserId))
+			if err != nil {
+				return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
+			}
+
+			serializedTag := serializers.TagSerializer(*tag, serializers.UserSerializer(&tagOwner))
+			tags = append(tags, tag)
+			serializedTags = append(serializedTags, serializedTag)
 		}
 	}
 
-	database.DB.Model(&camping).Updates(payload)
+	m := structs.Map(&payload)
+	fields := structs.Fields(&payload)
+	for _, field := range fields {
+		if field.IsZero() {
+			delete(m, field.Name())
+		}
+	}
 
+	m["Tags"] = tags
+
+	database.DB.Model(&camping).Updates(m)
 	serializedUser := serializers.UserSerializer(owner)
-	serializedCamping := serializers.CampingSerializer(&camping, serializedUser)
+	serializedCamping := serializers.CampingSerializer(&camping, serializedUser, serializedTags)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "success",
 		"data":    serializedCamping,
 	})
+
+}
+
+func findJsonName(tag reflect.StructTag) (string, error) {
+	if jsonTag, ok := tag.Lookup("json"); ok {
+		return strings.Split(jsonTag, ",")[0], nil
+	}
+
+	return "", fmt.Errorf("tag provided does not define a json tag")
 }
 
 func DeleteCamping(c *fiber.Ctx) error {
 	owner, err := middleware.GetAuthUser(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status":  "success",
-			"message": "success",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusUnauthorized, err)
 	}
 
 	campingId, err := c.ParamsInt("campingId")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
 	// database
 	var camping models.Camping
 	if err := database.DB.First(&camping, "id = ?", campingId).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"status":  "error",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
 	}
 
 	if err := checkUserEqualsRecordUser(owner, camping); err != nil {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "error",
-			"message": "error",
-			"data":    err.Error(),
-		})
+		return commonErrors.ErrorHandler(c, fiber.StatusForbidden, err)
 	}
 
 	database.DB.Delete(&camping)
@@ -395,6 +352,7 @@ func checkUserEqualsRecordUser(owner *models.User, camping models.Camping) error
 	if owner.ID != camping.UserId {
 		return errors.New("당신은 작성자가 아니군요!!")
 	}
+
 	return nil
 
 }
@@ -415,4 +373,13 @@ func setEnumStatus(status ...enums.Status) error {
 		}
 	}
 	return nil
+}
+
+func pprint(arg interface{}) string {
+	str, err := json.MarshalIndent(arg, "", "\t")
+	if err != nil {
+		log.Println(err)
+	}
+
+	return string(str)
 }

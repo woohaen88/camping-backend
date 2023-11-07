@@ -11,7 +11,9 @@ require (
 
 require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0 // indirect
+	github.com/fatih/structs v1.1.0 // indirect
 	github.com/gofiber/contrib/jwt v1.0.7 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 )
 
 require (

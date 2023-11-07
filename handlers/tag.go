@@ -142,3 +142,13 @@ func CreateTag(c *fiber.Ctx) error {
 		"data":    serializedTag,
 	})
 }
+
+func FindByTagId[T int | uint | int32](tagId T) (*models.Tag, error) {
+	var tag *models.Tag
+
+	if err := database.DB.First(&tag, "id = ?", tagId).Error; err != nil {
+		return nil, err
+	}
+
+	return tag, nil
+}

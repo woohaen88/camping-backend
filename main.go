@@ -5,9 +5,8 @@ import (
 	"camping-backend/enums"
 	"camping-backend/handlers"
 	"camping-backend/middleware"
-	"log"
-
 	"github.com/gofiber/fiber/v2"
+	"log"
 )
 
 func setupRoute(app *fiber.App) {
