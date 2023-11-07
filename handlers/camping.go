@@ -14,8 +14,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 	"log"
-	"reflect"
-	"strings"
 )
 
 func CreateCamping(c *fiber.Ctx) error {
@@ -182,8 +180,34 @@ func GetCamping(c *fiber.Ctx) error {
 		return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
 	}
 
+	var tags []*models.Tag
+	if err := database.DB.Model(&camping).Association("Tags").Find(&tags); err != nil {
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
+	}
+
+	camping.Tags = tags
+
+	var serializedTags []serializers.Tag
+	for _, tag := range camping.Tags {
+		tag, err := FindByTagId(tag.ID)
+		if err != nil {
+			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
+		}
+
+		var tagOwner models.User
+		err = FindUserById(&tagOwner, int(tag.UserId))
+		if err != nil {
+			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
+		}
+
+		serializedTag := serializers.TagSerializer(*tag, serializers.UserSerializer(&tagOwner))
+		serializedTags = append(serializedTags, serializedTag)
+
+	}
+
 	serializedUser := serializers.UserSerializer(&user)
-	serializedCamping := serializers.CampingSerializer(&camping, serializedUser)
+	serializedCamping := serializers.CampingSerializer(&camping, serializedUser, serializedTags)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "success",
@@ -312,14 +336,6 @@ func UpdateCamping(c *fiber.Ctx) error {
 		"data":    serializedCamping,
 	})
 
-}
-
-func findJsonName(tag reflect.StructTag) (string, error) {
-	if jsonTag, ok := tag.Lookup("json"); ok {
-		return strings.Split(jsonTag, ",")[0], nil
-	}
-
-	return "", fmt.Errorf("tag provided does not define a json tag")
 }
 
 func DeleteCamping(c *fiber.Ctx) error {
