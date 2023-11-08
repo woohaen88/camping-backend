@@ -34,7 +34,7 @@ func CreateUser(c *fiber.Ctx) error {
 	// password 해쉬
 	user.PaswordHash(user.Password)
 
-	database.DB.Create(user)
+	database.Database.Conn.Create(user)
 	responseUser := serializers.UserSerializer(user)
 	return c.Status(200).JSON(responseUser)
 
@@ -95,7 +95,7 @@ func ChangePassword(c *fiber.Ctx) error {
 
 	user.PaswordHash(req.NewPassword)
 
-	database.DB.Save(user)
+	database.Database.Conn.Save(user)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
@@ -105,7 +105,7 @@ func ChangePassword(c *fiber.Ctx) error {
 }
 
 func FindUserById(user *models.User, id int) error {
-	database.DB.First(&user, id)
+	database.Database.Conn.First(&user, id)
 	if user.ID == 0 {
 		return errors.New("해당 유저가 없어용")
 	}

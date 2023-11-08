@@ -28,7 +28,7 @@ func GetAuthUser(c *fiber.Ctx) (*models.User, error) {
 	claims := jwtUser.Claims.(jwt.MapClaims)
 	userId := claims["userId"]
 
-	db := database.DB
+	db := database.Database.Conn
 	user := new(models.User)
 
 	if err := db.First(user, "id = ?", userId).Error; err != nil {

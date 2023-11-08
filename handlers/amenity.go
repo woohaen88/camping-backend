@@ -20,7 +20,7 @@ func DeleteAmenity(c *fiber.Ctx) error {
 	}
 
 	var amenity models.Amenity
-	if err := database.DB.First(&amenity, "id = ?", amenityId).Error; err != nil {
+	if err := database.Database.Conn.First(&amenity, "id = ?", amenityId).Error; err != nil {
 		return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
 	}
 
@@ -28,7 +28,7 @@ func DeleteAmenity(c *fiber.Ctx) error {
 		return commonError.ErrorHandler(c, fiber.StatusNotFound, nil, "남에껄 삭제하려하면 오또케~")
 	}
 
-	if err := database.DB.Delete(&amenity).Error; err != nil {
+	if err := database.Database.Conn.Delete(&amenity).Error; err != nil {
 		return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -48,7 +48,7 @@ func UpdateAmenity(c *fiber.Ctx) error {
 	}
 
 	var amenity models.Amenity
-	if err := database.DB.First(&amenity, "id = ?", amenityId).Error; err != nil {
+	if err := database.Database.Conn.First(&amenity, "id = ?", amenityId).Error; err != nil {
 		return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
 	}
 
@@ -64,8 +64,8 @@ func UpdateAmenity(c *fiber.Ctx) error {
 		return commonError.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
-	amenity.UpdatedAt = database.DB.NowFunc()
-	if err := database.DB.Model(&amenity).Updates(request).Error; err != nil {
+	amenity.UpdatedAt = database.Database.Conn.NowFunc()
+	if err := database.Database.Conn.Model(&amenity).Updates(request).Error; err != nil {
 		return commonError.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
@@ -81,7 +81,7 @@ func UpdateAmenity(c *fiber.Ctx) error {
 func ListAmenity(c *fiber.Ctx) error {
 
 	var amenities []models.Amenity
-	database.DB.Find(&amenities)
+	database.Database.Conn.Find(&amenities)
 
 	var serializedAmenities []serializers.Amenity
 	for _, amenity := range amenities {
@@ -117,11 +117,11 @@ func CreateAmenity(c *fiber.Ctx) error {
 	var amenity models.Amenity
 	amenity.Name = request.Name
 	amenity.Description = request.Description
-	amenity.CreatedAt = database.DB.NowFunc()
-	amenity.UpdatedAt = database.DB.NowFunc()
+	amenity.CreatedAt = database.Database.Conn.NowFunc()
+	amenity.UpdatedAt = database.Database.Conn.NowFunc()
 	amenity.UserId = authUser.ID
 
-	if err := database.DB.Create(&amenity).Error; err != nil {
+	if err := database.Database.Conn.Create(&amenity).Error; err != nil {
 		return errors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 

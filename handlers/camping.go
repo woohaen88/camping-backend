@@ -25,8 +25,8 @@ func CreateCamping(c *fiber.Ctx) error {
 	}
 
 	var camping = models.Camping{
-		CreatedAt: database.DB.NowFunc(),
-		UpdatedAt: database.DB.NowFunc(),
+		CreatedAt: database.Database.Conn.NowFunc(),
+		UpdatedAt: database.Database.Conn.NowFunc(),
 		UserId:    user.ID,
 	}
 	request := struct {
@@ -77,7 +77,7 @@ func CreateCamping(c *fiber.Ctx) error {
 
 	for _, tagId := range request.Tags {
 		var tagModel models.Tag
-		err = database.DB.First(&tagModel, "id = ?", tagId).Error
+		err = database.Database.Conn.First(&tagModel, "id = ?", tagId).Error
 		if err != nil {
 			return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err, "could not parse tag")
 		}
@@ -103,7 +103,7 @@ func CreateCamping(c *fiber.Ctx) error {
 	for _, amenityId := range request.Amenities {
 		amenity := models.Amenity{}
 		var amenityCreator models.User
-		if err := database.DB.First(&amenity, "id = ?", amenityId).Error; err != nil {
+		if err := database.Database.Conn.First(&amenity, "id = ?", amenityId).Error; err != nil {
 			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
 		}
 
@@ -116,13 +116,13 @@ func CreateCamping(c *fiber.Ctx) error {
 		amenities = append(amenities, amenity)
 	}
 
-	database.DB.Create(&camping)
+	database.Database.Conn.Create(&camping)
 
-	if err := database.DB.Model(&camping).Association("Tags").Append(tagModels); err != nil {
+	if err := database.Database.Conn.Model(&camping).Association("Tags").Append(tagModels); err != nil {
 		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err, "failed many to many field camping=>tags")
 	}
 
-	if err := database.DB.Model(&camping).Association("Amenities").Append(amenities); err != nil {
+	if err := database.Database.Conn.Model(&camping).Association("Amenities").Append(amenities); err != nil {
 		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err, "failed many to many field camping=>amenities")
 	}
 	responseUser := serializers.UserSerializer(user)
@@ -140,7 +140,7 @@ func ListCamping(c *fiber.Ctx) error {
 	var campings []models.Camping
 	var owner models.User
 
-	database.DB.Find(&campings)
+	database.Database.Conn.Find(&campings)
 
 	var responseCampings []serializers.Camping
 
@@ -169,7 +169,7 @@ func GetCamping(c *fiber.Ctx) error {
 	var camping models.Camping
 	var user models.User
 
-	if err := database.DB.First(&camping, "id = ?", campingId).Error; err != nil {
+	if err := database.Database.Conn.First(&camping, "id = ?", campingId).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
 		}
@@ -181,11 +181,17 @@ func GetCamping(c *fiber.Ctx) error {
 	}
 
 	var tags []*models.Tag
-	if err := database.DB.Model(&camping).Association("Tags").Find(&tags); err != nil {
+	if err := database.Database.Conn.Model(&camping).Association("Tags").Find(&tags); err != nil {
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
+	}
+
+	var amenities []*models.Amenity
+	if err := database.Database.Conn.Model(&camping).Association("Amenities").Find(&amenities); err != nil {
 		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
 	camping.Tags = tags
+	camping.Amenities = amenities
 
 	var serializedTags []serializers.Tag
 	for _, tag := range camping.Tags {
@@ -202,11 +208,27 @@ func GetCamping(c *fiber.Ctx) error {
 
 		serializedTag := serializers.TagSerializer(*tag, serializers.UserSerializer(&tagOwner))
 		serializedTags = append(serializedTags, serializedTag)
+	}
+
+	var serializedAmenities []serializers.Amenity
+	for _, amenity := range camping.Amenities {
+		amenityItem, err := database.Database.FindByAmenityId(int(amenity.Id))
+		if err != nil {
+			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
+		}
+
+		amenityOwner, err := database.Database.FindByUserId(int(amenityItem.UserId))
+		if err != nil {
+			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
+		}
+
+		serializedAmenity := serializers.AmenitySerializer(*amenityItem, serializers.UserSerializer(amenityOwner))
+		serializedAmenities = append(serializedAmenities, serializedAmenity)
 
 	}
 
 	serializedUser := serializers.UserSerializer(&user)
-	serializedCamping := serializers.CampingSerializer(&camping, serializedUser, serializedTags)
+	serializedCamping := serializers.CampingSerializer(&camping, serializedUser, serializedTags, serializedAmenities)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
@@ -230,7 +252,7 @@ func UpdateCamping(c *fiber.Ctx) error {
 
 	// FindDB
 	var camping models.Camping
-	if err := database.DB.First(&camping, "id = ?", campingId).Error; err != nil {
+	if err := database.Database.Conn.First(&camping, "id = ?", campingId).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
 		}
@@ -326,7 +348,10 @@ func UpdateCamping(c *fiber.Ctx) error {
 
 	m["Tags"] = tags
 
-	database.DB.Model(&camping).Updates(m)
+	database.Database.Conn.Model(&camping).Updates(m)
+	if err := database.Database.Conn.Model(&camping).Association("Tags").Replace(tags); err != nil {
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
+	}
 	serializedUser := serializers.UserSerializer(owner)
 	serializedCamping := serializers.CampingSerializer(&camping, serializedUser, serializedTags)
 
@@ -351,7 +376,7 @@ func DeleteCamping(c *fiber.Ctx) error {
 
 	// database
 	var camping models.Camping
-	if err := database.DB.First(&camping, "id = ?", campingId).Error; err != nil {
+	if err := database.Database.Conn.First(&camping, "id = ?", campingId).Error; err != nil {
 		return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
 	}
 
@@ -359,7 +384,7 @@ func DeleteCamping(c *fiber.Ctx) error {
 		return commonErrors.ErrorHandler(c, fiber.StatusForbidden, err)
 	}
 
-	database.DB.Delete(&camping)
+	database.Database.Conn.Delete(&camping)
 
 	return c.SendStatus(fiber.StatusOK)
 }
@@ -381,6 +406,7 @@ func setEnumView(view enums.ViewKind) error {
 	return nil
 
 }
+
 func setEnumStatus(status ...enums.Status) error {
 	for _, s := range status {
 		err := s.String()

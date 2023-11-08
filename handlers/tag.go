@@ -20,7 +20,7 @@ func DeleteTag(c *fiber.Ctx) error {
 	}
 
 	var tag models.Tag
-	if err := database.DB.First(&tag, "id = ?", tagId).Error; err != nil {
+	if err := database.Database.Conn.First(&tag, "id = ?", tagId).Error; err != nil {
 		return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
 	}
 
@@ -28,7 +28,7 @@ func DeleteTag(c *fiber.Ctx) error {
 		return commonError.ErrorHandler(c, fiber.StatusNotFound, nil, "남에껄 삭제하려하면 오또케~")
 	}
 
-	if err := database.DB.Delete(&tag).Error; err != nil {
+	if err := database.Database.Conn.Delete(&tag).Error; err != nil {
 		return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -48,7 +48,7 @@ func UpdateTag(c *fiber.Ctx) error {
 	}
 
 	var tag models.Tag
-	if err := database.DB.First(&tag, "id = ?", tagId).Error; err != nil {
+	if err := database.Database.Conn.First(&tag, "id = ?", tagId).Error; err != nil {
 		return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
 	}
 
@@ -64,8 +64,8 @@ func UpdateTag(c *fiber.Ctx) error {
 		return commonError.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
-	tag.UpdatedAt = database.DB.NowFunc()
-	if err := database.DB.Model(&tag).Updates(request).Error; err != nil {
+	tag.UpdatedAt = database.Database.Conn.NowFunc()
+	if err := database.Database.Conn.Model(&tag).Updates(request).Error; err != nil {
 		return commonError.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
 
@@ -80,13 +80,13 @@ func UpdateTag(c *fiber.Ctx) error {
 
 func ListTag(c *fiber.Ctx) error {
 	var tags []models.Tag
-	database.DB.Find(&tags)
+	database.Database.Conn.Find(&tags)
 
 	// serializer
 	var serializedTags []serializers.Tag
 	for _, tag := range tags {
 		var user models.User
-		if err := database.DB.First(&user, tag.UserId).Error; err != nil {
+		if err := database.Database.Conn.First(&user, tag.UserId).Error; err != nil {
 			return commonError.ErrorHandler(c, fiber.StatusNotFound, err)
 		}
 		serializedTag := serializers.TagSerializer(tag, serializers.UserSerializer(&user))
@@ -114,8 +114,8 @@ func CreateTag(c *fiber.Ctx) error {
 
 	request := models.Tag{
 		UserId:    authUser.ID,
-		CreatedAt: database.DB.NowFunc(),
-		UpdatedAt: database.DB.NowFunc(),
+		CreatedAt: database.Database.Conn.NowFunc(),
+		UpdatedAt: database.Database.Conn.NowFunc(),
 	}
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -125,7 +125,7 @@ func CreateTag(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := database.DB.Create(&request).Error; err != nil {
+	if err := database.Database.Conn.Create(&request).Error; err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "error",
 			"message": "duplicate name",
@@ -146,7 +146,7 @@ func CreateTag(c *fiber.Ctx) error {
 func FindByTagId[T int | uint | int32](tagId T) (*models.Tag, error) {
 	var tag *models.Tag
 
-	if err := database.DB.First(&tag, "id = ?", tagId).Error; err != nil {
+	if err := database.Database.Conn.First(&tag, "id = ?", tagId).Error; err != nil {
 		return nil, err
 	}
 

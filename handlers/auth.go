@@ -101,7 +101,7 @@ func isEmail(email string) bool {
 	return err == nil
 }
 func getUserByEmail(email string) (*models.User, error) {
-	db := database.DB
+	db := database.Database.Conn
 	user := new(models.User)
 	if err := db.Find(user, "email = ?", email).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -113,12 +113,12 @@ func getUserByEmail(email string) (*models.User, error) {
 }
 
 func checkEmailDuplicate(user *models.User) bool {
-	database.DB.Find(user, "email = ?", user.Email)
+	database.Database.Conn.Find(user, "email = ?", user.Email)
 	return user.ID > 0
 }
 
 func validUser(id string, p string) bool {
-	db := database.DB
+	db := database.Database.Conn
 	user := new(models.User)
 	db.First(user, id)
 	fmt.Println("아이디가 없으면???")

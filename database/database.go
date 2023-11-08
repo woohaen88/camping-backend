@@ -10,7 +10,11 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var DB *gorm.DB
+type DB struct {
+	Conn *gorm.DB
+}
+
+var Database DB
 
 func ConnectDB() {
 	var DSN string = "sqlite.db"
@@ -39,6 +43,24 @@ func ConnectDB() {
 		log.Fatal(err)
 	}
 
-	DB = db
+	Database.Conn = db
 
+}
+
+func (d DB) FindByAmenityId(amenityId int) (*models.Amenity, error) {
+	var amenity models.Amenity
+	err := Database.Conn.First(&amenity, "id = ?", amenityId).Error
+	if err != nil {
+		return nil, err
+	}
+	return &amenity, nil
+}
+
+func (d DB) FindByUserId(userId int) (*models.User, error) {
+	var user models.User
+	err := Database.Conn.First(&user, "id = ?", userId).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
