@@ -338,6 +338,26 @@ func UpdateCamping(c *fiber.Ctx) error {
 		}
 	}
 
+	var serializedAmenities []serializers.Amenity
+	var amenities []*models.Amenity
+	if len(payload.Amenities) > 0 {
+		for _, amenityId := range payload.Amenities {
+			amenity, err := database.Database.FindByAmenityId(amenityId)
+			if err != nil {
+				return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
+			}
+
+			amenityOwner, err := database.Database.FindByUserId(int(amenity.UserId))
+			if err != nil {
+				return commonErrors.ErrorHandler(c, fiber.StatusNotFound, err)
+			}
+
+			serializedAmenity := serializers.AmenitySerializer(*amenity, serializers.UserSerializer(amenityOwner))
+			amenities = append(amenities, amenity)
+			serializedAmenities = append(serializedAmenities, serializedAmenity)
+		}
+	}
+
 	m := structs.Map(&payload)
 	fields := structs.Fields(&payload)
 	for _, field := range fields {
@@ -347,13 +367,19 @@ func UpdateCamping(c *fiber.Ctx) error {
 	}
 
 	m["Tags"] = tags
+	m["Amenities"] = amenities
 
 	database.Database.Conn.Model(&camping).Updates(m)
 	if err := database.Database.Conn.Model(&camping).Association("Tags").Replace(tags); err != nil {
 		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
 	}
+
+	if err := database.Database.Conn.Model(&camping).Association("Amenities").Replace(amenities); err != nil {
+		return commonErrors.ErrorHandler(c, fiber.StatusBadRequest, err)
+	}
+
 	serializedUser := serializers.UserSerializer(owner)
-	serializedCamping := serializers.CampingSerializer(&camping, serializedUser, serializedTags)
+	serializedCamping := serializers.CampingSerializer(&camping, serializedUser, serializedTags, serializedAmenities)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",

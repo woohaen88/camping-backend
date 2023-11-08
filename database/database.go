@@ -56,6 +56,24 @@ func (d DB) FindByAmenityId(amenityId int) (*models.Amenity, error) {
 	return &amenity, nil
 }
 
+func (d DB) FindByCampingId(campingId int) (*models.Camping, error) {
+	var camping models.Camping
+	err := Database.Conn.First(&camping, "id = ?", campingId).Error
+	if err != nil {
+		return nil, err
+	}
+	return &camping, nil
+}
+
+func (d DB) FindByTagId(tagId int) (*models.Tag, error) {
+	var tag models.Tag
+	err := Database.Conn.First(&tag, "id = ?", tagId).Error
+	if err != nil {
+		return nil, err
+	}
+	return &tag, nil
+}
+
 func (d DB) FindByUserId(userId int) (*models.User, error) {
 	var user models.User
 	err := Database.Conn.First(&user, "id = ?", userId).Error
